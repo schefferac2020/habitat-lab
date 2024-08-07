@@ -25,8 +25,6 @@ def on_mouse(event, x, y, flags, param):
 
         cv2.imshow("FOVIAL IMAGE", fovial_img)
 
-    return fovial_image     
-
 def example():
     global fovial_factory
 
