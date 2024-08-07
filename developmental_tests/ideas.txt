@@ -1,0 +1,14 @@
+I think at this point, I just want the environment to quasi-static
+
+the only model that we are training at the moment is going to be moving the eyes around in the image. 
+
+There is no extrinsic reward. But there should be an encoder, forward, and inverse model in the same framework as before...
+
+We can either represent the "eye motion action" as a relative motion of the eye, or as a global motion of the eye...
+I think that the later would be simpler for now right? Just have some discrete set of eye positions that is our action space (say, 25 positions?)
+
+I actually think it might be better to learn the 
+
+
+
+I want to use tensorboard
