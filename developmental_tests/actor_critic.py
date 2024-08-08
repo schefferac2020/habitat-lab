@@ -27,39 +27,107 @@ def get_action_from_probabilities(action_probs):
 
 
 class Actor(nn.Module):
-    def __init__(self, n_actions, space_dims, hidden_dims):
-        super(Actor, self).__init__()
-        self.feature_extractor = nn.Sequential(
-            nn.Linear(space_dims, hidden_dims),
-            nn.ReLU(True)
-        )
-        self.actor = nn.Sequential(
-            nn.Linear(hidden_dims, n_actions),
-            nn.Softmax(dim=-1),
-        )
-        
-    def forward(self, x):
-        features = self.feature_extractor(x)
-        policy = self.actor(features)
-        return policy
+    def __init__(self, ...):
+        self.sensory_action_space_size = 10 # TODO: It will be a continuous action space I think right? Or it could be discrete but there would be a lot of possible states
 
+        self.backbone = nn.Sequential( # TODO: see if the channels are correct. This is a backbone from traditional RGB...
+            nn.Conv2d(4, 32, 8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3136, 512),
+            nn.ReLU(),
+        )
 
-class Critic(nn.Module):
-    '''Simplified Critic, does not consider the action take
-    to get to the specific state, x)'''
+        self.sensory_action_head = nn.Linear(512, self.sensory_action_space_size)
     
-    def __init__(self, space_dims, hidden_dims):
-        super(Critic, self).__init__()
-        self.feature_extractor = nn.Sequential(
-            nn.Linear(space_dims, hidden_dims),
-            nn.ReLU(True)
-        )
-        
-        self.critic = nn.Linear(hidden_dims, 1)
     def forward(self, x):
-        features = self.feature_extractor(x)
-        est_reward = self.critic(features)
-        return est_reward
+        x = self.backbone(x)
+        sensory_action_logits = self.senroy_action_head(x)
+
+        return sensory_action_logits
+    
+    def get_action_from_logits(self, logits) -> dict: # TODO: this could be static
+        policy_dist = Categorical(logits=logits)
+        action = policy_dist.sample()
+        
+        # Action probabilities for calculating the adapted soft-Q loss
+        action_probs = policy_dist.probs
+        log_prob = F.log_softmax(logits, dim=1)
+        return {"action": action, 
+                "action_probs": action_probs,
+                 "log_prob": log_prob}
+    
+    def get_action(self, x):
+        motor_action_logits, sensory_action_logits = self(x)
+        sensory_action = self.get_action_from_logits(sensory_action_logits)
+        return sensory_action
+
+'''Effectively the critic'''
+class SoftQNetwork(nn.Module):
+    def __init__(self):
+        self.sensory_action_space_size = 10 # TODO: It will be a continuous action space I think right? Or it could be discrete but there would be a lot of possible states
+        
+        self.backbone = nn.Sequential( # TODO: see if the channels are correct. This is a backbone from traditional RGB...
+            nn.Conv2d(4, 32, 8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3136, 512),
+            nn.ReLU(),
+        )
+        self.sensory_action_head = nn.Linear(512, sensory_action_space_size)
+    
+    def forward(self, x):
+        x = self.backbone(x)
+        motor_action = self.motor_action_head(x)
+        sensory_action = None
+        if self.sensory_action_head:
+            sensory_action = self.sensory_action_head(x)
+        return motor_action, sensory_action
+
+# All of the ICM Model Code goes here
+
+# class ActorCartpole(nn.Module):
+#     def __init__(self, n_actions, space_dims, hidden_dims):
+#         super(Actor, self).__init__()
+#         self.feature_extractor = nn.Sequential(
+#             nn.Linear(space_dims, hidden_dims),
+#             nn.ReLU(True)
+#         )
+#         self.actor = nn.Sequential(
+#             nn.Linear(hidden_dims, n_actions),
+#             nn.Softmax(dim=-1),
+#         )
+        
+#     def forward(self, x):
+#         features = self.feature_extractor(x)
+#         policy = self.actor(features)
+#         return policy
+
+# Old Critic, actually outputs a single Q value for a particular state
+# class Critic(nn.Module):
+#     '''Simplified Critic, does not consider the action take
+#     to get to the specific state, x)'''
+    
+#     def __init__(self, space_dims, hidden_dims):
+#         super(Critic, self).__init__()
+#         self.feature_extractor = nn.Sequential(
+#             nn.Linear(space_dims, hidden_dims),
+#             nn.ReLU(True)
+#         )
+        
+#         self.critic = nn.Linear(hidden_dims, 1)
+#     def forward(self, x):
+#         features = self.feature_extractor(x)
+#         est_reward = self.critic(features)
+#         return est_reward
     
 
 actor = Actor(n_actions=env.action_space.n, space_dims=4, hidden_dims=32)
@@ -107,6 +175,47 @@ class StateFeatureExtractor(nn.Module):
     def forward(self, x):
         y = torch.tanh(self.fc(x))
         return y
+
+
+
+
+
+
+
+def main():
+    # TODO: Logging
+    # TODO: Parsing
+
+    device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
+
+    # Create the environement 
+    # for i in range(args.env_num):
+    #     envs.append(make_env(args.env, args.seed+i, frame_stack=args.frame_stack, action_repeat=args.action_repeat,
+    #                             fov_size=(args.fov_size, args.fov_size), 
+    #                             fov_init_loc=(args.fov_init_loc, args.fov_init_loc),
+    #                             sensory_action_mode=args.sensory_action_mode,
+    #                             sensory_action_space=(-args.sensory_action_space, args.sensory_action_space),
+    #                             resize_to_full=args.resize_to_full,
+    #                             clip_reward=args.clip_reward,
+    #                             mask_out=True))
+
+    OBSERVATION_SIZE = (428, 428)
+
+    # TODO: Initialize the actual parts of the image that you can view given the overvation size
+    # Could use this place to split it up into chunks 4x4 or something? Assuming the camera is a square...
+
+
+
+
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
 
 feature_extractor = StateFeatureExtractor(env.observation_space.shape[0], 32)
 forward_model = ForwardModel(env.action_space.n, 32)
