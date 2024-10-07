@@ -1,3 +1,11 @@
+'''
+I want this to be at least a continuous camera and for the robot to have continuous motion
+
+Understand this from the COLAB thing
+
+I think that we should do something using self prediction.... (Learning to Look by Self Prediction)
+'''
+
 import habitat
 from habitat.sims.habitat_simulator.actions import HabitatSimActions
 import cv2
@@ -71,6 +79,7 @@ def example():
         print("Destination, distance: {:3f}, theta(radians): {:.2f}".format(
             observations["pointgoal_with_gps_compass"][0],
             observations["pointgoal_with_gps_compass"][1]))
+
         image = transform_rgb_bgr(observations["rgb"])
         fovial_factory.set_image(image)
         cv2.imshow("RGB", image)
