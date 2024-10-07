@@ -1,5 +1,5 @@
 '''
-A script that does some simple continuous navigation
+A script that does some simple continuous navigation in Habitat_SIM
 
 This doesn't have any sense of motion blur...
 '''

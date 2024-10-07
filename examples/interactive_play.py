@@ -22,9 +22,9 @@ Controls:
 - For IK control
     - W,S,A,D to move side to side
     - E,Q to move up and down
-- I,J,K,L to move the articulated agent base around
+- I,J,K,L to move the articulated agiient base around
 - PERIOD to print the current world coordinates of the articulated agent base.
-- Z to toggle the camera to free movement mode. When in free camera mode:
+- Z to toggle thez. When in free camera mode:
     - W,S,A,D,Q,E to translate the camera
     - I,J,K,L,U,O to rotate the camera
     - B to reset the camera position
