@@ -41,12 +41,9 @@ except ImportError:
     pygame = None
 
 # Please reach out to the paper authors to obtain this file
-DEFAULT_POSE_PATH = "data/humanoids/humanoid_data/walking_motion_processed.pkl"
 DEFAULT_CFG = "benchmark/rearrange/play/play.yaml"
 DEFAULT_RENDER_STEPS_LIMIT = 600
 SAVE_VIDEO_DIR = "./data/vids"
-SAVE_ACTIONS_DIR = "./data/interactive_play_replays"
-
 
 def step_env(env, action_name, action_args):
     return env.step({"action": action_name, "action_args": action_args})
@@ -57,11 +54,7 @@ def get_input_vel_ctlr(
     cfg,
     env,
     not_block_input,
-    agent_to_control,
 ):
-    
-
-
     agent_k = ""
 
     if "spot" in cfg:
@@ -115,6 +108,7 @@ def get_input_vel_ctlr(
             float("%.3f" % x)
             for x in env._sim.articulated_agent.sim_obj.translation
         ]
+
         rot = env._sim.articulated_agent.sim_obj.rotation
         ee_pos = env._sim.articulated_agent.ee_transform().translation
         logger.info(
@@ -204,6 +198,14 @@ def play_env(env, args, config):
 
     obs = env.reset()
 
+    # Set the initial arm configuration
+    '''
+    These are the limits: 
+        min: array([-1.6056, -1.221 ,    -inf, -2.251 ,    -inf, -2.16  ,    -inf],
+        max: array([1.6056, 1.518 ,    inf, 2.251 ,    inf, 2.16  ,    inf]
+    '''
+    env._sim.articulated_agent.set_fixed_arm_joint_pos([1.57, 1.50, 0, 1.57, 0.0, 1.57, 0.0])
+
     if not args.no_render:
         draw_obs = observations_to_image(obs, {})
         pygame.init()
@@ -212,11 +214,10 @@ def play_env(env, args, config):
         )
 
     update_idx = 0
-    target_fps = 60.0
+    target_fps = 60
     prev_time = time.time()
     all_obs = []
     total_reward = 0
-    agent_to_control = 0
 
     free_cam = FreeCamHelper()
 
@@ -229,18 +230,10 @@ def play_env(env, args, config):
             args.cfg,
             env,
             not free_cam.is_free_cam_mode,
-            agent_to_control,
         )
 
         if step_result is None:
             break
-
-        print(step_result)
-        for (key, value) in step_result.items():
-            try:
-                print(f"{key} --> {np.array(value).shape}")
-            except:
-                print(f"{key} --> {value}")
 
         if end_ep:
             total_reward = 0
@@ -253,8 +246,6 @@ def play_env(env, args, config):
 
         obs = step_result
         info = env.get_metrics()
-        print(info)
-        exit(0)
 
         reward_key = [k for k in info if "reward" in k]
         if len(reward_key) > 0:
@@ -292,6 +283,10 @@ def play_env(env, args, config):
         curr_time = time.time()
         diff = curr_time - prev_time
         delay = max(1.0 / target_fps - diff, 0)
+        if (1.0 / target_fps - diff > 0):
+            print(f"Able to play at {target_fps}")
+        else:
+            print(f"cant play that fast here is diff {diff}s")
         time.sleep(delay)
         prev_time = curr_time
 
