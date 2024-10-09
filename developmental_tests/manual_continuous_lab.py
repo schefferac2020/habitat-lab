@@ -41,7 +41,9 @@ except ImportError:
     pygame = None
 
 # Please reach out to the paper authors to obtain this file
-DEFAULT_CFG = "benchmark/rearrange/play/play.yaml"
+# DEFAULT_CFG = "benchmark/rearrange/play/play.yaml"
+DEFAULT_CFG = "drew_test.yaml"
+
 DEFAULT_RENDER_STEPS_LIMIT = 600
 SAVE_VIDEO_DIR = "./data/vids"
 
@@ -117,6 +119,9 @@ def get_input_vel_ctlr(
 
 
     args: Dict[str, Any] = {}
+
+    # Print out the available actions
+    print("These are the action spaces: ", env.action_space.spaces) # looks like theres an action space for the arm and the body...
 
     if base_action is not None and base_action_name in env.action_space.spaces:
         name = base_action_name
@@ -283,10 +288,10 @@ def play_env(env, args, config):
         curr_time = time.time()
         diff = curr_time - prev_time
         delay = max(1.0 / target_fps - diff, 0)
-        if (1.0 / target_fps - diff > 0):
-            print(f"Able to play at {target_fps}")
-        else:
-            print(f"cant play that fast here is diff {diff}s")
+        # if (1.0 / target_fps - diff > 0):
+        #     print(f"Able to play at {target_fps}")
+        # else:
+        #     print(f"cant play that fast here is diff {diff}s")
         time.sleep(delay)
         prev_time = curr_time
 
