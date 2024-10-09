@@ -31,14 +31,49 @@ from habitat.utils.visualizations.utils import (
     observations_to_image,
     overlay_frame,
 )
+from habitat.config.default_structured_configs import ActionConfig
+from habitat.tasks.nav.nav import SimulatorTaskAction
 from habitat_sim.utils import viz_utils as vut
 
 import random
+from dataclasses import dataclass
+
 
 try:
     import pygame
 except ImportError:
     pygame = None
+
+# Create a new camera move action
+@dataclass
+class CamControlActionConfig(ActionConfig):
+    ang_speed: float = 0.0 # change this in config
+    noise_amount: float = 0.0
+
+# Define the new action
+# the __init__ method receives a sim and config argument.
+@habitat.registry.register_task_action
+class CamVelocityAction(SimulatorTaskAction):
+    def __init__(self, *args, config, sim, **kwargs):
+        super().__init__(*args, config=config, sim=sim, **kwargs)
+        self._sim = sim
+        self._ang_speed = config.ang_speed
+        self._noise_amount = config.noise_amount
+
+    def _get_uuid(self, *args, **kwargs):
+        return "cam_velocity_control"
+
+    def step(self, *args, **kwargs):
+        print(
+            f"Calling {self._get_uuid()} d={self._ang_speed}m noise={self._noise_amount}"
+        )
+        # This is where the code for the new action goes. Here we use a
+        # helper method but you could directly modify the simulation here.
+        # _strafe_body(self._sim, self._move_amount, 90, self._noise_amount)
+
+
+
+
 
 # Please reach out to the paper authors to obtain this file
 # DEFAULT_CFG = "benchmark/rearrange/play/play.yaml"
@@ -50,6 +85,7 @@ SAVE_VIDEO_DIR = "./data/vids"
 def step_env(env, action_name, action_args):
     return env.step({"action": action_name, "action_args": action_args})
 
+i = 0
 
 def get_input_vel_ctlr(
     skip_pygame,
@@ -57,6 +93,7 @@ def get_input_vel_ctlr(
     env,
     not_block_input,
 ):
+    global i 
     agent_k = ""
 
     if "spot" in cfg:
@@ -126,6 +163,20 @@ def get_input_vel_ctlr(
     if base_action is not None and base_action_name in env.action_space.spaces:
         name = base_action_name
         args = {base_key: base_action}
+
+    # name=  "velocity_control",
+    # args = {
+    #         "angular_velocity": 0.2,
+    #         "linear_velocity": 0.2,
+    # }
+    # if i > 10:
+    #     name = "DO_NEW_ACTION"
+    #     args = {}
+    # i += 1
+    name = (base_action_name, "DO_NEW_ACTION")
+    args = {
+        base_key: base_action
+    }
 
     return step_env(env, name, args), end_ep
 
@@ -210,6 +261,17 @@ def play_env(env, args, config):
         max: array([1.6056, 1.518 ,    inf, 2.251 ,    inf, 2.16  ,    inf]
     '''
     env._sim.articulated_agent.set_fixed_arm_joint_pos([1.57, 1.50, 0, 1.57, 0.0, 1.57, 0.0])
+    # print("This is one things", env._sim.articulated_agent)
+    # print("This is the other thing: ", env._sim.get_agent(0))
+
+    # print("These are the sensor states:", dir(env._sim.articulated_agent))
+    # print("These are the sensor states:", env._sim.articulated_agent.head_rot_jid)
+    # print("These are the sensor states:", env._sim.articulated_agent.head_tilt_jid)
+    # print("These are the sensor states:", dir(env._sim.articulated_agent.head_tilt_jid))
+    # print("These are the sensor states:", dir(env._sim.articulated_agent.joint_motors))
+    # print("These are the sensor states:", (env._sim.articulated_agent.joint_motors))
+    # exit(0)
+    
 
     if not args.no_render:
         draw_obs = observations_to_image(obs, {})
@@ -374,6 +436,13 @@ if __name__ == "__main__":
         sim_config = config.habitat.simulator
         task_config = config.habitat.task
 
+        task_config.actions["DO_NEW_ACTION"] = CamControlActionConfig(
+            type="CamVelocityAction",
+            ang_speed=1.0,
+            noise_amount=0.0
+        )
+
+
         if not args.same_task:
             sim_config.debug_render = True
             agent_config = get_agent_config(sim_config=sim_config)
@@ -384,17 +453,8 @@ if __name__ == "__main__":
                     )
                 }
             )
-            if "pddl_success" in task_config.measurements:
-                task_config.measurements.pddl_success.must_call_stop = False
-            if "rearrange_nav_to_obj_success" in task_config.measurements:
-                task_config.measurements.rearrange_nav_to_obj_success.must_call_stop = (
-                    False
-                )
-            if "force_terminate" in task_config.measurements:
-                task_config.measurements.force_terminate.max_accum_force = -1.0
-                task_config.measurements.force_terminate.max_instant_force = (
-                    -1.0
-                )
+
+
 
         if args.never_end:
             env_config.max_episode_steps = 0

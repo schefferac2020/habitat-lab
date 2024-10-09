@@ -3,4 +3,5 @@ defaults:
   - /habitat/task/actions:
     - base_velocity
     - rearrange_stop
+    - velocity_control
   - _self_
