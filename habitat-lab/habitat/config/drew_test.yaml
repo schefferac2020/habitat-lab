@@ -9,12 +9,6 @@ defaults:
 
   - /habitat/task: task_config_base
   - /habitat/task/rearrange/actions: drew_fetch_action # This is what sets up the action space for the rearrange tasks (base vel, gripper close, arm action, etc)
-  # - /habitat/task/measurements:
-  #   - articulated_agent_force
-  #   - zero
-  # - /habitat/task/lab_sensors:
-  #   - joint_sensor
-
   
   # - /habitat/dataset/pointnav: habitat_test
   - /habitat/dataset/rearrangement: replica_cad
@@ -45,17 +39,19 @@ habitat:
   simulator:
     # action_space_config: "velocitycontrol"
 
-    type: RearrangeSim-v0 #TODO: Change 
+    type: RearrangeSim-v0 #TODO: Change
     seed: 100
     additional_object_paths:
       - "data/objects/ycb/configs/"
     agents:
       main_agent:
         radius: 0.3
-        sim_sensors:
-          head_rgb_sensor:
-            height: 128
-            width: 128
+        # sim_sensors:
+        #   head_rgb_sensor:
+        #     height: 128
+        #     width: 128
+
+
     habitat_sim_v0:
       enable_physics: True
   dataset:

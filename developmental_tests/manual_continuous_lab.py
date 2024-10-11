@@ -22,6 +22,7 @@ from habitat.config.default_structured_configs import (
     GfxReplayMeasureMeasurementConfig,
     PddlApplyActionConfig,
     ThirdRGBSensorConfig,
+    HeadRGBSensorConfig,
 )
 from habitat.core.logging import logger
 from habitat.tasks.rearrange.actions.actions import ArmEEAction
@@ -52,6 +53,13 @@ class CamControlActionConfig(ActionConfig):
 
 # Define the new action
 # the __init__ method receives a sim and config argument.
+'''
+Here are the options:
+- Global position
+- Relative position (let's do this for now)
+- camera pitch/yaw angular velocity
+'''
+
 @habitat.registry.register_task_action
 class CamVelocityAction(SimulatorTaskAction):
     def __init__(self, *args, config, sim, **kwargs):
@@ -64,13 +72,39 @@ class CamVelocityAction(SimulatorTaskAction):
         return "cam_velocity_control"
 
     def step(self, *args, **kwargs):
-        print(
-            f"Calling {self._get_uuid()} d={self._ang_speed}m noise={self._noise_amount}"
-        )
+        # print(
+        #     f"Calling {self._get_uuid()} d={self._ang_speed}m noise={self._noise_amount}"
+        # )
         # This is where the code for the new action goes. Here we use a
         # helper method but you could directly modify the simulation here.
         # _strafe_body(self._sim, self._move_amount, 90, self._noise_amount)
+        # offset_rpy = np.array([0, 0, 0])
 
+        # xyz_offset = np.array([10, 10, 10])
+        # quat = euler_to_quat(offset_rpy) # TODO: no clue what frame this is in
+        # trans = mn.Matrix4.from_(
+        #     quat.to_matrix(), mn.Vector3(*xyz_offset)
+        # )
+
+        # print("The current state is ", dir(self._sim.get_agent(0)))
+        # print("The current state is ", self._sim.get_agent(0).get_state())
+
+        # val = np.array([0.0, 0.0, 0.0])
+
+        # curr_state = self._sim.get_agent(0).get_state()
+        # curr_state.sensor_states["head_rgb"].position = mn.Vector3(np.array([0.0, 0.0, 0.0]))
+        # curr_state.position = mn.Vector3(val)
+
+
+        offset_rpy = np.random.uniform(-.1, .1, 3)
+        self._sim.get_agent(0).scene_node.rotation  = euler_to_quat(offset_rpy)
+        print(dir(self._sim))
+
+
+        # self._sim.get_agent(0).set_state(curr_state, reset_sensors=False, infer_sensor_states=False)
+        
+
+        # We are doing local position
 
 
 
@@ -158,7 +192,7 @@ def get_input_vel_ctlr(
     args: Dict[str, Any] = {}
 
     # Print out the available actions
-    print("These are the action spaces: ", env.action_space.spaces) # looks like theres an action space for the arm and the body...
+    # print("These are the action spaces: ", env.action_space.spaces) # looks like theres an action space for the arm and the body...
 
     if base_action is not None and base_action_name in env.action_space.spaces:
         name = base_action_name
@@ -197,7 +231,7 @@ class FreeCamHelper:
         if keys[pygame.K_z] and (update_idx - self._last_pressed) > 60:
             self._is_free_cam_mode = not self._is_free_cam_mode
             logger.info(f"Switching camera mode to {self._is_free_cam_mode}")
-            self._last_pressed = update_idx
+            self._last_pressed = update_idx        
 
         if self._is_free_cam_mode:
             offset_rpy = np.zeros(3)
@@ -235,6 +269,7 @@ class FreeCamHelper:
                 self._free_rpy = np.zeros(3)
                 self._free_xyz = np.zeros(3)
 
+            self._free_rpy += np.random.uniform(-.1, .1, 3)
             quat = euler_to_quat(self._free_rpy)
             trans = mn.Matrix4.from_(
                 quat.to_matrix(), mn.Vector3(*self._free_xyz)
@@ -262,16 +297,9 @@ def play_env(env, args, config):
     '''
     env._sim.articulated_agent.set_fixed_arm_joint_pos([1.57, 1.50, 0, 1.57, 0.0, 1.57, 0.0])
     # print("This is one things", env._sim.articulated_agent)
-    # print("This is the other thing: ", env._sim.get_agent(0))
+    print("This is the other thing: ", env._sim.get_agent(0))
+    print("This is the sensor: ", env._sim.get_agent(0)._sensors["head_rgb"])
 
-    # print("These are the sensor states:", dir(env._sim.articulated_agent))
-    # print("These are the sensor states:", env._sim.articulated_agent.head_rot_jid)
-    # print("These are the sensor states:", env._sim.articulated_agent.head_tilt_jid)
-    # print("These are the sensor states:", dir(env._sim.articulated_agent.head_tilt_jid))
-    # print("These are the sensor states:", dir(env._sim.articulated_agent.joint_motors))
-    # print("These are the sensor states:", (env._sim.articulated_agent.joint_motors))
-    # exit(0)
-    
 
     if not args.no_render:
         draw_obs = observations_to_image(obs, {})
@@ -312,6 +340,7 @@ def play_env(env, args, config):
         update_idx += 1
 
         obs = step_result
+        
         info = env.get_metrics()
 
         reward_key = [k for k in info if "reward" in k]
@@ -446,6 +475,14 @@ if __name__ == "__main__":
         if not args.same_task:
             sim_config.debug_render = True
             agent_config = get_agent_config(sim_config=sim_config)
+            
+            agent_config.sim_sensors.update(
+                {
+                    "head_rgb_sensor": HeadRGBSensorConfig(
+                        height=args.play_cam_res, width=args.play_cam_res
+                    )
+                }
+            )
             agent_config.sim_sensors.update(
                 {
                     "third_rgb_sensor": ThirdRGBSensorConfig(
@@ -458,9 +495,6 @@ if __name__ == "__main__":
 
         if args.never_end:
             env_config.max_episode_steps = 0
-
-        if task_config.type == "RearrangePddlTask-v0":
-            task_config.actions["pddl_apply_action"] = PddlApplyActionConfig()
 
     with habitat.Env(config=config) as env:
         play_env(env, args, config)
