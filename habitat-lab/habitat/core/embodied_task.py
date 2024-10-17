@@ -333,11 +333,13 @@ class EmbodiedTask:
         observations: Optional[Any] = None
         if isinstance(action_name, tuple):  # there are multiple actions
             for a_name in action_name:
+                print(f"DREW_DEBUG: Stepping for the action of {a_name}")
                 observations = self._step_single_action(
                     a_name,
                     action,
                     episode,
                 )
+                # print("DREW_DEBUG This is the observation", observations)
         else:
             observations = self._step_single_action(
                 action_name, action, episode

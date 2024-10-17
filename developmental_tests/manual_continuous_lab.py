@@ -94,14 +94,46 @@ class CamVelocityAction(SimulatorTaskAction):
         # curr_state = self._sim.get_agent(0).get_state()
         # curr_state.sensor_states["head_rgb"].position = mn.Vector3(np.array([0.0, 0.0, 0.0]))
         # curr_state.position = mn.Vector3(val)
+        
+        agent = self._sim.get_agent(0)
+        agent_state = agent.get_state()
+        
+        print("Starting camera position: ", agent_state.sensor_states["head_rgb"].position)
+        
+        cam_pos_offset = np.random.uniform(-1, 1, 3) * .1
+        
+        # Get the agent's current state
+        
 
+        # Get the current position of the head camera
+        current_cam_pos = agent_state.sensor_states["head_rgb"].position
 
-        offset_rpy = np.random.uniform(-.1, .1, 3)
-        self._sim.get_agent(0).scene_node.rotation  = euler_to_quat(offset_rpy)
-        print(dir(self._sim))
+        # Update the position by adding the offset
+        new_cam_pos = mn.Vector3(
+            current_cam_pos[0] + cam_pos_offset[0],
+            current_cam_pos[1] + cam_pos_offset[1],
+            current_cam_pos[2] + cam_pos_offset[2]
+        )
 
+        # Update the camera position in the sensor state
+        agent_state.sensor_states["head_rgb"].position = new_cam_pos
 
-        # self._sim.get_agent(0).set_state(curr_state, reset_sensors=False, infer_sensor_states=False)
+        # Set the updated agent state back
+        agent.set_state(agent_state, reset_sensors=False)
+
+        # Print the updated camera position for debugging
+        print("Updated camera position: ", agent_state.sensor_states["head_rgb"].position)
+        
+        observations = env._sim.get_sensor_observations()["head_rgb"]
+        observations = self._sim.get_observations_at(
+            agent_state.sensor_states["head_rgb"].position, agent_state.rotation
+        )
+        return observations
+
+        raise "I want to see the stack trace"
+
+        pass
+
         
 
         # We are doing local position
@@ -159,20 +191,20 @@ def get_input_vel_ctlr(
     elif keys[pygame.K_n]:
         env._sim.navmesh_visualization = not env._sim.navmesh_visualization
 
-    if not_block_input:
-        # Base control
-        if keys[pygame.K_j]:
-            # Left
-            base_action = [0, 0.25]
-        elif keys[pygame.K_l]:
-            # Right
-            base_action = [0, -0.25]
-        elif keys[pygame.K_k]:
-            # Back
-            base_action = [-0.25, 0]
-        elif keys[pygame.K_i]:
-            # Forward
-            base_action = [0.25, 0]
+
+    # Base control
+    if keys[pygame.K_j]:
+        # Left
+        base_action = [0, 0.25]
+    elif keys[pygame.K_l]:
+        # Right
+        base_action = [0, -0.25]
+    elif keys[pygame.K_k]:
+        # Back
+        base_action = [-0.25, 0]
+    elif keys[pygame.K_i]:
+        # Forward
+        base_action = [0.25, 0]
     
 
     if keys[pygame.K_PERIOD]:
@@ -268,15 +300,18 @@ class FreeCamHelper:
             if keys[pygame.K_b]:
                 self._free_rpy = np.zeros(3)
                 self._free_xyz = np.zeros(3)
+            
+            cam_position = env._sim.get_agent(0).get_state().sensor_states["head_rgb"].position
+            print("The position of the camera is", cam_position)
+            
+            # cam_position = np.array([0, 0, 1])
 
-            self._free_rpy += np.random.uniform(-.1, .1, 3)
-            quat = euler_to_quat(self._free_rpy)
+            rpy = np.random.uniform(-1, 1, 3) * 0.1
+            quat = euler_to_quat(rpy)
             trans = mn.Matrix4.from_(
-                quat.to_matrix(), mn.Vector3(*self._free_xyz)
+                quat.to_matrix(), mn.Vector3(*cam_position)
             )
-            env._sim._sensors[
-                "third_rgb"
-            ]._sensor_object.node.transformation = trans
+            env._sim._sensors["head_rgb"]._sensor_object.node.transformation = trans
             step_result = env._sim.get_sensor_observations()
             return step_result
         return step_result
@@ -353,7 +388,7 @@ def play_env(env, args, config):
         info["Total Reward"] = total_reward
 
         if free_cam.is_free_cam_mode:
-            cam = obs["third_rgb"]
+            cam = obs["head_rgb"]
             use_ob = np.zeros(draw_obs.shape)
             use_ob[:, : cam.shape[1]] = cam[:, :, :3]
 
