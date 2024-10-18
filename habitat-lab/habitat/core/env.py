@@ -307,7 +307,6 @@ class Env:
         if isinstance(action, (str, int, np.integer)):
             action = {"action": action}
 
-        print("DREW_DEBUG this is the action: ", action)
         observations = self.task.step(
             action=action, episode=self.current_episode
         )

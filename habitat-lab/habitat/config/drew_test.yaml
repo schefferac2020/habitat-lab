@@ -37,7 +37,7 @@ habitat:
   environment:
     max_episode_steps: 0
   simulator:
-    # action_space_config: "velocitycontrol"
+    # action_space_config: "velocitycontrol" # IDK what the hell this is
 
     type: RearrangeSim-v0 #TODO: Change
     seed: 100

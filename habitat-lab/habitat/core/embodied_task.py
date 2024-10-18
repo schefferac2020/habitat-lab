@@ -333,18 +333,16 @@ class EmbodiedTask:
         observations: Optional[Any] = None
         if isinstance(action_name, tuple):  # there are multiple actions
             for a_name in action_name:
-                print(f"DREW_DEBUG: Stepping for the action of {a_name}")
                 observations = self._step_single_action(
                     a_name,
                     action,
                     episode,
                 )
-                # print("DREW_DEBUG This is the observation", observations)
         else:
             observations = self._step_single_action(
                 action_name, action, episode
             )
-
+        
         self._sim.step_physics(1.0 / self._physics_target_sps)  # type:ignore
 
         if observations is None:
@@ -362,6 +360,7 @@ class EmbodiedTask:
         self._is_episode_active = self._check_episode_is_active(
             observations=observations, action=action, episode=episode
         )
+        
         return observations
 
     def get_action_name(self, action_index: Union[int, np.integer]):

@@ -38,12 +38,16 @@ from habitat_sim.utils import viz_utils as vut
 
 import random
 from dataclasses import dataclass
-
+import quaternion
 
 try:
     import pygame
 except ImportError:
     pygame = None
+    
+def quat_2_list(quat: mn.Quaternion):
+    return [quat.vector[0], quat.vector[1], quat.vector[2], quat.scalar]
+    
 
 # Create a new camera move action
 @dataclass
@@ -67,77 +71,41 @@ class CamVelocityAction(SimulatorTaskAction):
         self._sim = sim
         self._ang_speed = config.ang_speed
         self._noise_amount = config.noise_amount
+        
+        self.current_x = 0 # Left to right motion
+        self.current_y = 0 # 
 
     def _get_uuid(self, *args, **kwargs):
         return "cam_velocity_control"
 
     def step(self, *args, **kwargs):
-        # print(
-        #     f"Calling {self._get_uuid()} d={self._ang_speed}m noise={self._noise_amount}"
-        # )
-        # This is where the code for the new action goes. Here we use a
-        # helper method but you could directly modify the simulation here.
-        # _strafe_body(self._sim, self._move_amount, 90, self._noise_amount)
-        # offset_rpy = np.array([0, 0, 0])
+        eyes_ang_offset = kwargs["eyes_ang_offset"]
+        if eyes_ang_offset is None:
+            raise "This is bad. Should be passed in I think"
 
-        # xyz_offset = np.array([10, 10, 10])
-        # quat = euler_to_quat(offset_rpy) # TODO: no clue what frame this is in
-        # trans = mn.Matrix4.from_(
-        #     quat.to_matrix(), mn.Vector3(*xyz_offset)
-        # )
-
-        # print("The current state is ", dir(self._sim.get_agent(0)))
-        # print("The current state is ", self._sim.get_agent(0).get_state())
-
-        # val = np.array([0.0, 0.0, 0.0])
-
-        # curr_state = self._sim.get_agent(0).get_state()
-        # curr_state.sensor_states["head_rgb"].position = mn.Vector3(np.array([0.0, 0.0, 0.0]))
-        # curr_state.position = mn.Vector3(val)
+        self.current_x += eyes_ang_offset[0]
+        self.current_y += eyes_ang_offset[1]
         
-        agent = self._sim.get_agent(0)
-        agent_state = agent.get_state()
         
-        print("Starting camera position: ", agent_state.sensor_states["head_rgb"].position)
         
-        cam_pos_offset = np.random.uniform(-1, 1, 3) * .1
         
-        # Get the agent's current state
+        rand_vec = np.random.uniform(-1, 1, 3) * 0.1
+        quat = euler_to_quat(rand_vec)
+
+        '''
+        These are the things we can modify:
         
-
-        # Get the current position of the head camera
-        current_cam_pos = agent_state.sensor_states["head_rgb"].position
-
-        # Update the position by adding the offset
-        new_cam_pos = mn.Vector3(
-            current_cam_pos[0] + cam_pos_offset[0],
-            current_cam_pos[1] + cam_pos_offset[1],
-            current_cam_pos[2] + cam_pos_offset[2]
-        )
-
-        # Update the camera position in the sensor state
-        agent_state.sensor_states["head_rgb"].position = new_cam_pos
-
-        # Set the updated agent state back
-        agent.set_state(agent_state, reset_sensors=False)
-
-        # Print the updated camera position for debugging
-        print("Updated camera position: ", agent_state.sensor_states["head_rgb"].position)
+        attached_link_id', 'cam_look_at_pos', 'cam_offset_pos', 'cam_orientation', 'relative_transform'
+            :property cam_offset_pos: The 3D position of the camera relative to the transformation of the attached link.
+            :property cam_look_at_pos: The 3D of where the camera should face relative to the transformation of the attached link.
+        '''
         
-        observations = env._sim.get_sensor_observations()["head_rgb"]
-        observations = self._sim.get_observations_at(
-            agent_state.sensor_states["head_rgb"].position, agent_state.rotation
-        )
-        return observations
+        env._sim.articulated_agent.params.cameras["head"].cam_look_at_pos = mn.Vector3(0, 0, 0) # Set this to 0 to disable it.
 
-        raise "I want to see the stack trace"
-
-        pass
-
+        # [pitch down->up, turn right->left, roll]
+        env._sim.articulated_agent.params.cameras["head"].cam_orientation = mn.Vector3(0+self.current_y, -(1.57 + self.current_x), 0)
         
-
-        # We are doing local position
-
+        #TODO: Is there some weird gimbal locking thing here?
 
 
 
@@ -167,9 +135,13 @@ def get_input_vel_ctlr(
     else:
         base_action_name = f"{agent_k}base_velocity"
     base_key = "base_vel"
+    
+    eyes_action_name = "eyes_action"
+    eyes_key = "eyes_ang_offset"
 
 
     base_action = [0, 0]
+    eyes_action = [0, 0]
     end_ep = False
 
     if skip_pygame:
@@ -205,6 +177,20 @@ def get_input_vel_ctlr(
     elif keys[pygame.K_i]:
         # Forward
         base_action = [0.25, 0]
+        
+    # Eyes Control
+    if keys[pygame.K_w]:
+        # up
+        eyes_action = [0, 0.01]
+    elif keys[pygame.K_a]:
+        # left
+        eyes_action = [-0.01, 0]
+    elif keys[pygame.K_s]:
+        # down
+        eyes_action = [0, -0.01]
+    elif keys[pygame.K_d]:
+        # Forward
+        eyes_action = [0.01, 0]
     
 
     if keys[pygame.K_PERIOD]:
@@ -225,23 +211,19 @@ def get_input_vel_ctlr(
 
     # Print out the available actions
     # print("These are the action spaces: ", env.action_space.spaces) # looks like theres an action space for the arm and the body...
+    # args = {}
+    # if base_action is not None and base_action_name in env.action_space.spaces:
+    #     name = base_action_name
+    #     args = {base_key: base_action}
+        
+    # if eyes_action is not None and eyes_action_name in env.action_space.spaces:
+    #     name = eyes_action_name
+    #     args = {eyes_key: eyes_action}
 
-    if base_action is not None and base_action_name in env.action_space.spaces:
-        name = base_action_name
-        args = {base_key: base_action}
-
-    # name=  "velocity_control",
-    # args = {
-    #         "angular_velocity": 0.2,
-    #         "linear_velocity": 0.2,
-    # }
-    # if i > 10:
-    #     name = "DO_NEW_ACTION"
-    #     args = {}
-    # i += 1
-    name = (base_action_name, "DO_NEW_ACTION")
+    name = (base_action_name, eyes_action_name)
     args = {
-        base_key: base_action
+        base_key: base_action,
+        eyes_key: eyes_action
     }
 
     return step_env(env, name, args), end_ep
@@ -332,8 +314,6 @@ def play_env(env, args, config):
     '''
     env._sim.articulated_agent.set_fixed_arm_joint_pos([1.57, 1.50, 0, 1.57, 0.0, 1.57, 0.0])
     # print("This is one things", env._sim.articulated_agent)
-    print("This is the other thing: ", env._sim.get_agent(0))
-    print("This is the sensor: ", env._sim.get_agent(0)._sensors["head_rgb"])
 
 
     if not args.no_render:
@@ -414,10 +394,7 @@ def play_env(env, args, config):
         curr_time = time.time()
         diff = curr_time - prev_time
         delay = max(1.0 / target_fps - diff, 0)
-        # if (1.0 / target_fps - diff > 0):
-        #     print(f"Able to play at {target_fps}")
-        # else:
-        #     print(f"cant play that fast here is diff {diff}s")
+
         time.sleep(delay)
         prev_time = curr_time
 
@@ -500,7 +477,7 @@ if __name__ == "__main__":
         sim_config = config.habitat.simulator
         task_config = config.habitat.task
 
-        task_config.actions["DO_NEW_ACTION"] = CamControlActionConfig(
+        task_config.actions["eyes_action"] = CamControlActionConfig(
             type="CamVelocityAction",
             ang_speed=1.0,
             noise_amount=0.0
@@ -518,16 +495,6 @@ if __name__ == "__main__":
                     )
                 }
             )
-            agent_config.sim_sensors.update(
-                {
-                    "third_rgb_sensor": ThirdRGBSensorConfig(
-                        height=args.play_cam_res, width=args.play_cam_res
-                    )
-                }
-            )
-
-
-
         if args.never_end:
             env_config.max_episode_steps = 0
 
