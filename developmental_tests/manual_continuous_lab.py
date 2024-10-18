@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 
-
-
-# TODO: Remove everything todo with an arm.
-
 import argparse
 import os
 import os.path as osp
@@ -72,6 +68,8 @@ class CamVelocityAction(SimulatorTaskAction):
         self._ang_speed = config.ang_speed
         self._noise_amount = config.noise_amount
         
+        self._sim.articulated_agent.params.cameras["head"].cam_look_at_pos = mn.Vector3(0, 0, 0) # Set this to 0 to disable it.
+        
         self.current_x = 0 # Left to right motion
         self.current_y = 0 # 
 
@@ -79,31 +77,23 @@ class CamVelocityAction(SimulatorTaskAction):
         return "cam_velocity_control"
 
     def step(self, *args, **kwargs):
-        eyes_ang_offset = kwargs["eyes_ang_offset"]
-        if eyes_ang_offset is None:
+        
+        if "eyes_ang_offset" in kwargs.keys():
+            self.current_x += kwargs["eyes_ang_offset"][0]
+            self.current_y += kwargs["eyes_ang_offset"][1]
+        elif "eyes_saccade" in kwargs.keys():
+            self.current_x = kwargs["eyes_saccade"][0]
+            self.current_y = kwargs["eyes_saccade"][1]
+        else:
             raise "This is bad. Should be passed in I think"
 
-        self.current_x += eyes_ang_offset[0]
-        self.current_y += eyes_ang_offset[1]
         
         
-        
-        
-        rand_vec = np.random.uniform(-1, 1, 3) * 0.1
-        quat = euler_to_quat(rand_vec)
-
-        '''
-        These are the things we can modify:
-        
-        attached_link_id', 'cam_look_at_pos', 'cam_offset_pos', 'cam_orientation', 'relative_transform'
-            :property cam_offset_pos: The 3D position of the camera relative to the transformation of the attached link.
-            :property cam_look_at_pos: The 3D of where the camera should face relative to the transformation of the attached link.
-        '''
-        
-        env._sim.articulated_agent.params.cameras["head"].cam_look_at_pos = mn.Vector3(0, 0, 0) # Set this to 0 to disable it.
+        # rand_vec = np.random.uniform(-1, 1, 3) * 0.1
+        # quat = euler_to_quat(rand_vec)
 
         # [pitch down->up, turn right->left, roll]
-        env._sim.articulated_agent.params.cameras["head"].cam_orientation = mn.Vector3(0+self.current_y, -(1.57 + self.current_x), 0)
+        self._sim.articulated_agent.params.cameras["head"].cam_orientation = mn.Vector3(0+self.current_y, -(1.57 + self.current_x), 0)
         
         #TODO: Is there some weird gimbal locking thing here?
 
@@ -119,14 +109,12 @@ SAVE_VIDEO_DIR = "./data/vids"
 def step_env(env, action_name, action_args):
     return env.step({"action": action_name, "action_args": action_args})
 
-i = 0
 
 def get_input_vel_ctlr(
     skip_pygame,
     cfg,
     env,
 ):
-    global i 
     agent_k = ""
 
     if "spot" in cfg:
@@ -137,10 +125,12 @@ def get_input_vel_ctlr(
     
     eyes_action_name = "eyes_action"
     eyes_key = "eyes_ang_offset"
+    eyes_saccade_key = "eyes_saccade"
 
 
     base_action = [0, 0]
     eyes_action = [0, 0]
+    eyes_saccade_action = [0, 0]
     end_ep = False
 
     if skip_pygame:
@@ -191,6 +181,12 @@ def get_input_vel_ctlr(
         # Forward
         eyes_action = [0.01, 0]
     
+    performed_saccade = False
+    if keys[pygame.K_f]:
+        eyes_saccade_action = np.random.uniform(-0.7, 0.7, 2)
+        performed_saccade = True
+        
+    
 
     if keys[pygame.K_PERIOD]:
         # Print the current position of the articulated agent, useful for debugging.
@@ -209,10 +205,16 @@ def get_input_vel_ctlr(
     args: Dict[str, Any] = {}
 
     name = (base_action_name, eyes_action_name)
-    args = {
-        base_key: base_action,
-        eyes_key: eyes_action
-    }
+    if performed_saccade:
+        args = {
+            base_key: base_action,
+            eyes_saccade_key: eyes_saccade_action
+        }
+    else:
+        args = {
+            base_key: base_action,
+            eyes_key: eyes_action,
+        }
 
     return step_env(env, name, args), end_ep
 
