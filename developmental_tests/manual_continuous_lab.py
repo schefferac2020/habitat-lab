@@ -84,10 +84,19 @@ class CamVelocityAction(SimulatorTaskAction):
         else:
             raise "This is bad. Should be passed in I think"
 
+        rand_vec = np.random.uniform(-1, 1, 3) * 0.1
+        rand_vec = np.array([0, 1.57, 0])
+        quat = euler_to_quat(rand_vec)
         
         
-        # rand_vec = np.random.uniform(-1, 1, 3) * 0.1
-        # quat = euler_to_quat(rand_vec)
+        agent_state = self._sim.get_agent(0).get_state()
+        # print("This is the agent state: ", agent_state)
+        # agent_state.sensor_states["head_rgb"].position = rand_vec
+        agent_state.sensor_states["head_rgb"].rotation = quat_2_list(quat)
+        # self._sim.get_agent(0).set_state(agent_state, reset_sensors=False, infer_sensor_states=False)
+        
+        
+        
 
         # [pitch down->up, turn right->left, roll]
         # self._sim.articulated_agent.params.cameras["head"].cam_orientation = mn.Vector3(0+self.current_y, -(1.57 + self.current_x), 0)
@@ -256,7 +265,7 @@ def play_env(env, args, config):
         )
 
     update_idx = 0
-    target_fps = 60
+    target_fps = 20
     prev_time = time.time()
     all_obs = []
     total_reward = 0

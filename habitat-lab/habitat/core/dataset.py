@@ -386,6 +386,7 @@ class EpisodeIterator(Iterator[T]):
             on each scene switch.  This stops all workers from swapping scenes at
             the same time
         """
+        
         if seed:
             random.seed(seed)
             np.random.seed(seed)

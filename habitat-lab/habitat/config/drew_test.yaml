@@ -51,7 +51,7 @@ habitat:
     max_episode_steps: 0
   simulator:
     # type: other_type_of_siM #RearrangeSim-v0 #TODO: Change
-    seed: 40
+    seed: 4
     additional_object_paths:
       - "data/objects/ycb/configs/"
     agents:
