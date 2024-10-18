@@ -3,30 +3,43 @@ defaults:
   - /habitat: habitat_config_base
   # - pointnav_base
 
-  - /habitat/simulator: rearrange_sim #TODO: Change 
+  # - /habitat/simulator: rearrange_sim #TODO: Change 
   - /habitat/simulator/sensor_setups@habitat.simulator.agents.main_agent: rgb_head_agent #rgb_head_rgbd_arm_agent
   - /habitat/simulator/agents@habitat.simulator.agents.main_agent: fetch #fetch_suction
 
   - /habitat/task: task_config_base
-  - /habitat/task/rearrange/actions: drew_fetch_action # This is what sets up the action space for the rearrange tasks (base vel, gripper close, arm action, etc)
+  # - /habitat/task/rearrange/actions: drew_fetch_action # This is what sets up the action space for the rearrange tasks (base vel, gripper close, arm action, etc)
   
-  # - /habitat/dataset/pointnav: habitat_test
-  - /habitat/dataset/rearrangement: replica_cad
+  - /habitat/dataset/objectnav: hm3d
+  # - /habitat/task/actions:
+    # - base_velocity
+    # - velocity_control
+
+  # - /habitat/dataset/rearrangement: replica_cad
   - _self_
+  
 
 # Config for empty task to explore the scene.
 habitat:
   task:
     # Config for empty task to explore the scene.
-    type: RearrangeEmptyTask-v0 #TODO: Change 
+    type: ObjectNav-v1 #RearrangeEmptyTask-v0 #TODO: Change 
     count_obj_collisions: True
     desired_resting_position: [0.5, 0.0, 1.0]
     reward_measure: "zero" #TODO: Change 
     success_measure: "zero" #TODO: Change 
 
+    actions:
+      move_forward:
+        type: MoveForwardAction
+      turn_left:
+        type: TurnLeftAction
+      turn_right:
+        type: TurnRightAction
+    
+
     # Reach task config
     render_target: True
-    # ee_sample_factor: 0.8
 
     # In radians
     base_angle_noise: 0.0
@@ -37,22 +50,16 @@ habitat:
   environment:
     max_episode_steps: 0
   simulator:
-    # action_space_config: "velocitycontrol" # IDK what the hell this is
-
-    type: RearrangeSim-v0 #TODO: Change
-    seed: 100
+    # type: other_type_of_siM #RearrangeSim-v0 #TODO: Change
+    seed: 40
     additional_object_paths:
       - "data/objects/ycb/configs/"
     agents:
       main_agent:
-        radius: 0.3
-        # sim_sensors:
-        #   head_rgb_sensor:
-        #     height: 128
-        #     width: 128
-
+        radius: 0.01
 
     habitat_sim_v0:
       enable_physics: True
   dataset:
-    data_path: data/datasets/replica_cad/rearrange/v2/{split}/rearrange_easy.json.gz #TODO: Change 
+    # data_path: data/datasets/replica_cad/rearrange/v2/{split}/rearrange_easy.json.gz #TODO: Change 
+    data_path: data/datasets/objectnav/hm3d/v2/{split}/{split}.json.gz

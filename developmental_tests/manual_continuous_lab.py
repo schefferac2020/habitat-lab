@@ -15,9 +15,6 @@ import habitat.tasks.rearrange.rearrange_task
 from habitat.articulated_agent_controllers import HumanoidRearrangeController
 from habitat.config.default import get_agent_config
 from habitat.config.default_structured_configs import (
-    GfxReplayMeasureMeasurementConfig,
-    PddlApplyActionConfig,
-    ThirdRGBSensorConfig,
     HeadRGBSensorConfig,
 )
 from habitat.core.logging import logger
@@ -68,7 +65,7 @@ class CamVelocityAction(SimulatorTaskAction):
         self._ang_speed = config.ang_speed
         self._noise_amount = config.noise_amount
         
-        self._sim.articulated_agent.params.cameras["head"].cam_look_at_pos = mn.Vector3(0, 0, 0) # Set this to 0 to disable it.
+        # self._sim.articulated_agent.params.cameras["head"].cam_look_at_pos = mn.Vector3(0, 0, 0) # Set this to 0 to disable it.
         
         self.current_x = 0 # Left to right motion
         self.current_y = 0 # 
@@ -93,7 +90,7 @@ class CamVelocityAction(SimulatorTaskAction):
         # quat = euler_to_quat(rand_vec)
 
         # [pitch down->up, turn right->left, roll]
-        self._sim.articulated_agent.params.cameras["head"].cam_orientation = mn.Vector3(0+self.current_y, -(1.57 + self.current_x), 0)
+        # self._sim.articulated_agent.params.cameras["head"].cam_orientation = mn.Vector3(0+self.current_y, -(1.57 + self.current_x), 0)
         
         #TODO: Is there some weird gimbal locking thing here?
 
@@ -188,18 +185,18 @@ def get_input_vel_ctlr(
         
     
 
-    if keys[pygame.K_PERIOD]:
-        # Print the current position of the articulated agent, useful for debugging.
-        pos = [
-            float("%.3f" % x)
-            for x in env._sim.articulated_agent.sim_obj.translation
-        ]
+    # if keys[pygame.K_PERIOD]:
+    #     # Print the current position of the articulated agent, useful for debugging.
+    #     pos = [
+    #         float("%.3f" % x)
+    #         for x in env._sim.articulated_agent.sim_obj.translation
+    #     ]
 
-        rot = env._sim.articulated_agent.sim_obj.rotation
-        ee_pos = env._sim.articulated_agent.ee_transform().translation
-        logger.info(
-            f"Agent state: pos = {pos}, rotation = {rot}, ee_pos = {ee_pos}"
-        )
+    #     rot = env._sim.articulated_agent.sim_obj.rotation
+    #     ee_pos = env._sim.articulated_agent.ee_transform().translation
+    #     logger.info(
+    #         f"Agent state: pos = {pos}, rotation = {rot}, ee_pos = {ee_pos}"
+    #     )
 
 
     args: Dict[str, Any] = {}
@@ -215,6 +212,22 @@ def get_input_vel_ctlr(
             base_key: base_action,
             eyes_key: eyes_action,
         }
+    
+    ## TODO: Debug
+    name = ("eyes_action")
+    args = {eyes_saccade_key: [0, 0]}
+    if keys[pygame.K_w]:
+        # up
+        name = ("move_forward")
+    elif keys[pygame.K_a]:
+        # left
+        name = ("turn_left")
+    elif keys[pygame.K_d]:
+        # down
+        name = ("turn_right")
+    
+    
+    
 
     return step_env(env, name, args), end_ep
 
@@ -231,7 +244,7 @@ def play_env(env, args, config):
         min: array([-1.6056, -1.221 ,    -inf, -2.251 ,    -inf, -2.16  ,    -inf],
         max: array([1.6056, 1.518 ,    inf, 2.251 ,    inf, 2.16  ,    inf]
     '''
-    env._sim.articulated_agent.set_fixed_arm_joint_pos([1.57, 1.50, 0, 1.57, 0.0, 1.57, 0.0])
+    # env._sim.articulated_agent.set_fixed_arm_joint_pos([1.57, 1.50, 0, 1.57, 0.0, 1.57, 0.0])
     # print("This is one things", env._sim.articulated_agent)
 
 
