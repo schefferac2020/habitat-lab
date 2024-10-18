@@ -125,7 +125,6 @@ def get_input_vel_ctlr(
     skip_pygame,
     cfg,
     env,
-    not_block_input,
 ):
     global i 
     agent_k = ""
@@ -209,17 +208,6 @@ def get_input_vel_ctlr(
 
     args: Dict[str, Any] = {}
 
-    # Print out the available actions
-    # print("These are the action spaces: ", env.action_space.spaces) # looks like theres an action space for the arm and the body...
-    # args = {}
-    # if base_action is not None and base_action_name in env.action_space.spaces:
-    #     name = base_action_name
-    #     args = {base_key: base_action}
-        
-    # if eyes_action is not None and eyes_action_name in env.action_space.spaces:
-    #     name = eyes_action_name
-    #     args = {eyes_key: eyes_action}
-
     name = (base_action_name, eyes_action_name)
     args = {
         base_key: base_action,
@@ -227,77 +215,6 @@ def get_input_vel_ctlr(
     }
 
     return step_env(env, name, args), end_ep
-
-
-class FreeCamHelper:
-    def __init__(self):
-        self._is_free_cam_mode = False
-        self._last_pressed = 0
-        self._free_rpy = np.zeros(3)
-        self._free_xyz = np.zeros(3)
-
-    @property
-    def is_free_cam_mode(self):
-        return self._is_free_cam_mode
-
-    def update(self, env, step_result, update_idx):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_z] and (update_idx - self._last_pressed) > 60:
-            self._is_free_cam_mode = not self._is_free_cam_mode
-            logger.info(f"Switching camera mode to {self._is_free_cam_mode}")
-            self._last_pressed = update_idx        
-
-        if self._is_free_cam_mode:
-            offset_rpy = np.zeros(3)
-            if keys[pygame.K_u]:
-                offset_rpy[1] += 1
-            elif keys[pygame.K_o]:
-                offset_rpy[1] -= 1
-            elif keys[pygame.K_i]:
-                offset_rpy[2] += 1
-            elif keys[pygame.K_k]:
-                offset_rpy[2] -= 1
-            elif keys[pygame.K_j]:
-                offset_rpy[0] += 1
-            elif keys[pygame.K_l]:
-                offset_rpy[0] -= 1
-
-            offset_xyz = np.zeros(3)
-            if keys[pygame.K_q]:
-                offset_xyz[1] += 1
-            elif keys[pygame.K_e]:
-                offset_xyz[1] -= 1
-            elif keys[pygame.K_w]:
-                offset_xyz[2] += 1
-            elif keys[pygame.K_s]:
-                offset_xyz[2] -= 1
-            elif keys[pygame.K_a]:
-                offset_xyz[0] += 1
-            elif keys[pygame.K_d]:
-                offset_xyz[0] -= 1
-            offset_rpy *= 0.1
-            offset_xyz *= 0.1
-            self._free_rpy += offset_rpy
-            self._free_xyz += offset_xyz
-            if keys[pygame.K_b]:
-                self._free_rpy = np.zeros(3)
-                self._free_xyz = np.zeros(3)
-            
-            cam_position = env._sim.get_agent(0).get_state().sensor_states["head_rgb"].position
-            print("The position of the camera is", cam_position)
-            
-            # cam_position = np.array([0, 0, 1])
-
-            rpy = np.random.uniform(-1, 1, 3) * 0.1
-            quat = euler_to_quat(rpy)
-            trans = mn.Matrix4.from_(
-                quat.to_matrix(), mn.Vector3(*cam_position)
-            )
-            env._sim._sensors["head_rgb"]._sensor_object.node.transformation = trans
-            step_result = env._sim.get_sensor_observations()
-            return step_result
-        return step_result
-
 
 def play_env(env, args, config):
     render_steps_limit = None
@@ -329,8 +246,6 @@ def play_env(env, args, config):
     all_obs = []
     total_reward = 0
 
-    free_cam = FreeCamHelper()
-
     while True:
         if render_steps_limit is not None and update_idx > render_steps_limit:
             break
@@ -339,7 +254,6 @@ def play_env(env, args, config):
             args.no_render,
             args.cfg,
             env,
-            not free_cam.is_free_cam_mode,
         )
 
         if step_result is None:
@@ -350,8 +264,6 @@ def play_env(env, args, config):
             # Clear the saved keyframes.
             env.reset() #TODO maybe you want to just reset env here?
 
-        if not args.no_render:
-            step_result = free_cam.update(env, step_result, update_idx)
         update_idx += 1
 
         obs = step_result
@@ -367,13 +279,7 @@ def play_env(env, args, config):
         total_reward += reward
         info["Total Reward"] = total_reward
 
-        if free_cam.is_free_cam_mode:
-            cam = obs["head_rgb"]
-            use_ob = np.zeros(draw_obs.shape)
-            use_ob[:, : cam.shape[1]] = cam[:, :, :3]
-
-        else:
-            use_ob = observations_to_image(obs, info)
+        use_ob = observations_to_image(obs, info)
 
         draw_ob = use_ob[:]
 
