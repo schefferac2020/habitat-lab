@@ -41,6 +41,9 @@ try:
 except ImportError:
     pygame = None
     
+from fovial_imagery import FovialImageFactory
+import cv2
+    
 def quat_2_list(quat: mn.Quaternion):
     return [quat.vector[0], quat.vector[1], quat.vector[2], quat.scalar]
     
@@ -224,6 +227,7 @@ def play_env(env, args, config):
         render_steps_limit = DEFAULT_RENDER_STEPS_LIMIT
 
     obs = env.reset()
+    
 
     # Set the initial arm configuration
     '''
@@ -283,7 +287,17 @@ def play_env(env, args, config):
 
         use_ob = observations_to_image(obs, info)
 
+        
+        
+        fovial_factory = FovialImageFactory(use_ob, 32, 5)
+        fovial_img = fovial_factory.get_fovial_image(256, 256)
+        fovial_img = cv2.cvtColor(fovial_img, cv2.COLOR_BGR2RGB)
+        cv2.imshow("FOVIAL", fovial_img)
+        
         draw_ob = use_ob[:]
+        
+        # print("This is the size of the image:", use_ob.shape)
+        
 
         if not args.no_render:
             draw_ob = np.transpose(draw_ob, (1, 0, 2))

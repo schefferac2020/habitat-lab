@@ -4,7 +4,7 @@ from utils import *
 
 class FovialImageFactory:
     def __init__(self, fovia_size, fovial_layers):
-        sellf.image = np.zeros((512, 512, 3))
+        self.image = np.zeros((512, 512, 3))
         self.fovia_size = fovia_size
         self.fovial_layers = fovial_layers
         self.fovia_layer_sizes = fovia_size*(2**np.arange(fovial_layers))

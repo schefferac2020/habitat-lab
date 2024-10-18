@@ -247,6 +247,7 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     else:
         render_frame = np.concatenate(render_obs_images, axis=1)
 
+
     # draw collision
     collisions_key = "collisions"
     if collisions_key in info and info[collisions_key]["is_collision"]:
