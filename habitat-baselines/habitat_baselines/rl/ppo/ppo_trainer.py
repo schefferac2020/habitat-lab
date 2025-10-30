@@ -254,6 +254,7 @@ class PPOTrainer(BaseRLTrainer):
         logger.add_filehandler(self.config.habitat_baselines.log_file)
 
         self._agent = self._create_agent(resume_state)
+
         if self._is_distributed:
             self._agent.init_distributed(find_unused_params=False)  # type: ignore
         self._agent.post_init()
@@ -824,7 +825,7 @@ class PPOTrainer(BaseRLTrainer):
         if self.config.habitat_baselines.eval.should_load_ckpt:
             # map_location="cpu" is almost always better than mapping to a CUDA device.
             ckpt_dict = self.load_checkpoint(
-                checkpoint_path, map_location="cpu"
+                checkpoint_path, map_location="cpu", weights_only=False
             )
             step_id = ckpt_dict["extra_state"]["step"]
             logger.info(f"Loaded checkpoint trained for {step_id} steps")
@@ -872,6 +873,7 @@ class PPOTrainer(BaseRLTrainer):
             logger.info(f"env config: {OmegaConf.to_yaml(config)}")
 
         self._init_envs(config, is_eval=True)
+        
 
         self._agent = self._create_agent(None)
         if (
